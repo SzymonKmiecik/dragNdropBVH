@@ -82,7 +82,20 @@ function Skeleton() {
     }
 }
 
+function Frames() {
+    this.positions = [];
+}
+
+function MotionValues() {
+    this.values = [];
+    this.addMotion = function (motion) {
+        this.values.push(motion);
+    }
+}
+
 let skeleton = new Skeleton();
+let frames = new Frames();
+let motionValues = new MotionValues();
 
 function Node(name, isRoot, offset, channels, parent, depth) {
     this.name = name;
@@ -93,6 +106,17 @@ function Node(name, isRoot, offset, channels, parent, depth) {
     this.depth = depth;
 }
 
+function Motion(id) {
+    this.nodeId = id;
+    this.tranX = [];
+    this.tranY = [];
+    this.tranZ = [];
+    this.rotX = [];
+    this.rotY = [];
+    this.rotZ = [];
+}
+
+//------------------------------------------Hierarchy-----------------------
 function parseSkeleton(datas) {
     let data = splitData(datas);
     data = data.map(function (s) { return String.prototype.trim.apply(s); });
@@ -106,6 +130,7 @@ function parseSkeleton(datas) {
         console.log(i);
 
         if (data[i].includes('MOTION') == true) {
+            parseMotion(data.slice(i + 3)); //start of a motion values
             break;
         }
 
@@ -197,4 +222,57 @@ function parseEndSite(data, bracketControll, parent) {
     return node;
 }
 
+//-----------------------parsing motion--------------
 
+function parseMotion(data) {
+
+    for (let i = 0; i < skeleton.nodesCount; i++) {
+        if (skeleton.nodes[i].name != "End Site") {
+            motionValues.addMotion(new Motion(i)); //end site dont have channels and motion values, only offset
+            //skeleton.nodes[i].channels = skeleton.nodes[i].channels.split(' '); 
+        }
+    }
+
+
+    for (let i = 0; i < data.length; i++) {
+        let endSiteCount = 0;
+        let tmpData = data[i].split(' ');
+        tmpData.reverse();
+
+        // itertation trough skeleton nodes
+        for (let j = 0; j < skeleton.nodesCount; j++) {
+            if (skeleton.nodes[j].name != "End Site") {
+                let channelsOrder = skeleton.nodes[j].channels;
+
+                // itertation trough motion values for exact node
+                for (let k = 0; k < channelsOrder.length; k++) {
+                    switch (channelsOrder[k]) {
+                        case 'Xposition':
+                            motionValues.values[j - endSiteCount].tranX.push(parseFloat(tmpData.pop()));
+                            break;
+                        case 'Yposition':
+                            motionValues.values[j - endSiteCount].tranY.push(parseFloat(tmpData.pop()));
+                            break;
+                        case 'Zposition':
+                            motionValues.values[j - endSiteCount].tranZ.push(parseFloat(tmpData.pop()));
+                            break;
+                        case 'Xrotation':
+                            motionValues.values[j - endSiteCount].rotX.push(parseFloat(tmpData.pop()));
+                            break;
+                        case 'Yrotation':
+                            motionValues.values[j - endSiteCount].rotY.push(parseFloat(tmpData.pop()));
+                            break;
+                        case 'Zrotation':
+                            motionValues.values[j - endSiteCount].rotZ.push(parseFloat(tmpData.pop()));
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            else
+                endSiteCount++;
+        }
+    }
+    console.log(motionValues);
+}
